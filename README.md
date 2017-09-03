@@ -1,4 +1,11 @@
-# acme_mini_sea_battle
+# acme-mini-sea-battle
+
+## Play, don't read
+```
+./play.py
+```
+
+## Read
 
 ### Two grids: your opponent's and yours
 ```
