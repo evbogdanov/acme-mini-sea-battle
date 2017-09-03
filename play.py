@@ -10,14 +10,30 @@ import os
 ## -----------------------------------------------------------------------------
 
 class Event:
+	ORIG_MOUSE = 'M'
+	ETYPE_MIDDLE_CLICKS = ['x', 'X']
+	ETYPE_RIGHT_CLICKS = ['l', 'L']
+
 	def __init__(self, event_bytes):
-		valid, orig, etype, beg, end, text = self.parse_event(event_bytes)
-		self.valid = valid
+		is_valid, orig, etype, beg, end, text = self.parse_event(event_bytes)
+		self.is_valid = is_valid
 		self.orig = orig
 		self.etype = etype
 		self.beg = beg
 		self.end = end
 		self.text = text
+
+	@property
+	def is_middle_click(self):
+		return (
+			self.orig == self.ORIG_MOUSE and 
+			self.etype in self.ETYPE_MIDDLE_CLICKS)
+
+	@property
+	def is_right_click(self):
+		return (
+			self.orig == self.ORIG_MOUSE and 
+			self.etype in self.ETYPE_RIGHT_CLICKS)
 
 	@classmethod
 	def parse_event(cls, event_bytes):
@@ -30,7 +46,7 @@ class Event:
 		See `acmeevent(1)` for details
 		"""
 
-		valid = False
+		is_valid = False
 		orig = ''
 		etype = ''
 		beg = ''
@@ -43,14 +59,14 @@ class Event:
 			event_str)
 
 		if match:
-			valid = True
+			is_valid = True
 			orig = match.group(1)
 			etype = match.group(2)
 			beg = match.group(3)
 			end = match.group(4)
 			text = match.group(5) 
 
-		return valid, orig, etype, beg, end, text
+		return is_valid, orig, etype, beg, end, text
 
 ## ACME WINDOW
 ## -----------------------------------------------------------------------------
@@ -134,16 +150,25 @@ class Window:
 
 def play():
 	def event_handler(event):
-		if event.valid:
-			print(f"Valid event: {event.orig} {event.etype} '{event.text}'")
-		else:
-			print('Invalid event')
+		"""
+		Ignore invalid event or do something if it's valid
+		"""
+		if not event.is_valid:
+			return
 
-	w = Window()
-	print(w.id)
-	w.append('One\nTwo')
-	w.clean()
-	w.listen(event_handler)
+		if event.is_middle_click:
+			# TODO: execute default Acme command
+			print(f"Middle click with text: '{event.text}'")
+			return
+
+		if not event.is_right_click:
+			return
+
+		# I only interested in right clicks
+		print(f"Right click with text: '{event.text}'")
+
+	window = Window()
+	window.listen(event_handler)
 
 if __name__ == '__main__':
 	play()
