@@ -3,6 +3,7 @@
 import subprocess
 import re
 import random
+import sys
 
 # TODO: get rid of all `os.system`, use `subprocess` instead 
 import os
@@ -170,17 +171,30 @@ class Grid:
 	SQUARE_MISS = '-'
 	SQUARE_HIT = '+'
 
-	NUMBER_OF_SHIPS = 4
-
 	def __init__(self):
 		squares = {}
-		for coord in self.coordinates():
+		for coord in Grid.coordinates():
 			squares[coord] = self.SQUARE_EMPTY
 		self.squares = squares
 
-	@classmethod
-	def coordinates(cls):
-		return [f'{let}{num}' for let in cls.LETTERS for num in cls.NUMBERS]
+	@staticmethod
+	def coordinates():
+		"""
+		Gimme all possible coordinates on the grid
+		"""
+		return [f'{let}{num}'
+			for let in Grid.LETTERS
+			for num in Grid.NUMBERS]
+
+	@staticmethod
+	def is_valid_coordinate(coord):
+		"""
+		Game class will thank me for this method
+		"""
+		return (
+			len(coord) == 2 and
+			coord[0] in Grid.LETTERS and
+			coord[1] in Grid.NUMBERS)
 
 	def squares_at_line(self, num):
 		"""
@@ -195,12 +209,52 @@ class Grid:
 ## -----------------------------------------------------------------------------
 
 class Game:
+	NUMBER_OF_SHIPS = 4
+	NUMBER_OF_CLICKS_TO_KEEP = 2
+	
+	STATUS_SHIPS_PLACEMENT = 1
+	STATUS_SHOOTING = 2
+
 	def __init__(self):
 		self.window = Window()
 		self.grid_player = Grid()
 		self.grid_bot = Grid()
+		self.player_clicks = ''
+		self.status = self.STATUS_SHIPS_PLACEMENT
 
-	def event_handler(self, event):
+	def append_player_click(self, text):
+		"""
+		Append right click made by player. Return True on success.
+		"""
+		if len(text) == 1:
+			self.player_clicks += text
+			self.player_clicks = self.player_clicks[
+				-self.NUMBER_OF_CLICKS_TO_KEEP:]
+			return True
+		return False
+
+	def handle_player_coordinate(self, coord):
+		"""
+		This method fires up when the player enters a new (valid!) coordinate
+		"""
+		if self.status == self.STATUS_SHIPS_PLACEMENT:
+			self.place_player_ship(coord)
+			if not self.can_player_place_ships():
+				self.status = self.STATUS_SHOOTING
+		elif self.status == self.STATUS_SHOOTING:
+			player_hit = self.do_player_shooting(coord)
+			if player_hit:
+				self.maybe_the_end()
+			else:
+				while True:
+					bot_hit = self.do_bot_shooting()
+					if bot_hit:
+						self.maybe_the_end()
+					else:
+						break
+		self.print()
+
+	def handle_event(self, event):
 		"""
 		Handle a window's event
 		"""
@@ -216,15 +270,24 @@ class Game:
 			return
 
 		# I only interested in right clicks
-		print(f'Right click: {event.text}')
+		appended = self.append_player_click(event.text)
+
+		if not appended:
+			return
+
+		coord = self.player_clicks
+		if not Grid.is_valid_coordinate(coord):
+			return
+
+		self.handle_player_coordinate(coord)
 
 	def play(self):
 		"""
 		Start playing
 		"""
-		self.put_bot_ships()
+		self.place_bot_ships()
 		self.print()
-		self.window.listen(self.event_handler)
+		self.window.listen(self.handle_event)
 
 	def print(self):
 		"""
@@ -253,14 +316,88 @@ class Game:
   +---+---+---+---+        +---+---+---+---+""".format(*squares))
 		self.window.clean()
 
-	def put_bot_ships(self):
+	def can_player_place_ships(self):
 		"""
-		Randomly put bot ships on its grid
+		Can he?
 		"""
-		coords = self.grid_bot.coordinates()
+		placed_ships = 0
+		for square in self.grid_player.squares.values():
+			if square == Grid.SQUARE_SHIP:
+				placed_ships += 1
+		return placed_ships < self.NUMBER_OF_SHIPS
+
+	def place_player_ship(self, coord):
+		"""
+		Player places his ship on the given coordinate
+		"""
+		self.grid_player.squares[coord] = Grid.SQUARE_SHIP
+
+	def place_bot_ships(self):
+		"""
+		Randomly place bot ships on the grid
+		"""
+		coords = Grid.coordinates()
 		random.shuffle(coords)
-		for coord in coords[:Grid.NUMBER_OF_SHIPS]:
+		for coord in coords[:self.NUMBER_OF_SHIPS]:
 			self.grid_bot.squares[coord] = Grid.SQUARE_SHIP
+
+	def do_player_shooting(self, coord):
+		"""
+		Player shoots. If it's a hit, then return True.
+		"""
+		square = self.grid_bot.squares[coord]
+		if square == Grid.SQUARE_SHIP:
+			self.grid_bot.squares[coord] = Grid.SQUARE_HIT
+			return True
+		if square == Grid.SQUARE_EMPTY:
+			self.grid_bot.squares[coord] = Grid.SQUARE_MISS
+		return False
+
+	def do_bot_shooting(self):
+		"""
+		Bot shoots
+		"""
+		coords = list(filter(lambda c:
+			Grid.SQUARE_MISS != self.grid_player.squares[c] != Grid.SQUARE_HIT,
+			Grid.coordinates()))
+		if not coords:
+			return False
+		coord = random.choice(coords)
+		square = self.grid_player.squares[coord]
+		if square == Grid.SQUARE_SHIP:
+			self.grid_player.squares[coord] = Grid.SQUARE_HIT
+			return True
+		self.grid_player.squares[coord] = Grid.SQUARE_MISS
+		return False
+
+	def maybe_the_end(self):
+		"""
+		Call me when somebody hits someone. The game might be over.
+		"""
+		score_player = 0
+		for square in self.grid_bot.squares.values():
+			if square == Grid.SQUARE_HIT:
+				score_player += 1
+
+		if score_player == self.NUMBER_OF_SHIPS:
+			self.exit('You won!')
+
+		score_bot = 0
+		for square in self.grid_player.squares.values():
+			if square == Grid.SQUARE_HIT:
+				score_bot += 1
+
+		if score_bot == self.NUMBER_OF_SHIPS:
+			self.exit('You lost the game!')
+
+	def exit(self, message):
+		"""
+		Print the final message and quit
+		"""
+		self.print()
+		self.window.append(message)
+		self.window.clean()
+		sys.exit()
 
 ## MAIN
 ## -----------------------------------------------------------------------------
