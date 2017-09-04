@@ -196,13 +196,16 @@ class Grid:
 			coord[0] in Grid.LETTERS and
 			coord[1] in Grid.NUMBERS)
 
-	def squares_at_line(self, num):
+	def squares_at_line(self, num, hide_ships=False):
 		"""
 		Make printing line by line easy peasy
 		"""
 		squares_list = []
 		for let in self.LETTERS:
-			squares_list.append(self.squares[f'{let}{num}'])
+			square = self.squares[f'{let}{num}']
+			if hide_ships and square == self.SQUARE_SHIP:
+				square = self.SQUARE_EMPTY
+			squares_list.append(square)
 		return squares_list
 
 ## GAME
@@ -289,19 +292,19 @@ class Game:
 		self.print()
 		self.window.listen(self.handle_event)
 
-	def print(self):
+	def print(self, hide_bot_ships=True):
 		"""
 		Print the state of the game to the window
 		"""
 		self.window.clear()
 		squares = (
-			self.grid_bot.squares_at_line(1) +
+			self.grid_bot.squares_at_line(1, hide_ships=hide_bot_ships) +
 			self.grid_player.squares_at_line(1) +
-			self.grid_bot.squares_at_line(2) +
+			self.grid_bot.squares_at_line(2, hide_ships=hide_bot_ships) +
 			self.grid_player.squares_at_line(2) +
-			self.grid_bot.squares_at_line(3) +
+			self.grid_bot.squares_at_line(3, hide_ships=hide_bot_ships) +
 			self.grid_player.squares_at_line(3) +
-			self.grid_bot.squares_at_line(4) +
+			self.grid_bot.squares_at_line(4, hide_ships=hide_bot_ships) +
 			self.grid_player.squares_at_line(4))
 		self.window.append("""
     A   B   C   D            A   B   C   D
@@ -390,7 +393,7 @@ class Game:
 		"""
 		Print the final message and quit
 		"""
-		self.print()
+		self.print(hide_bot_ships=False)
 		self.window.append(message)
 		self.window.clean()
 		sys.exit()
