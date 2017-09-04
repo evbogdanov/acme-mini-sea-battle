@@ -157,30 +157,43 @@ class Window:
 			event = Event(event_bytes)
 			handler(event)
 
-## GAMEPLAY
+## GAME
 ## -----------------------------------------------------------------------------
 
-def play():
-	def event_handler(event):
+class Game:
+	def __init__(self):
+		self.window = Window()
+
+	def event_handler(self, event):
 		"""
-		Ignore invalid event or do something if it's valid
+		Handle a window's event
 		"""
 		if not event.is_valid:
 			return
 
 		if event.is_middle_click:
 			# Middle click executes normal Acme commands
-			window.send_event(event)
+			self.window.send_event(event)
 			return
 
 		if not event.is_right_click:
 			return
 
 		# I only interested in right clicks
-		print(f"Right click with text: '{event.text}'")
+		print(f'Right click: {event.text}')
 
-	window = Window()
-	window.listen(event_handler)
+	def play(self):
+		"""
+		Let's play
+		"""
+		self.window.listen(self.event_handler)
+
+## MAIN
+## -----------------------------------------------------------------------------
+
+def main():
+	game = Game()
+	game.play()
 
 if __name__ == '__main__':
-	play()
+	main()
