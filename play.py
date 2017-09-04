@@ -3,7 +3,7 @@
 import subprocess
 import re
 
-# TODO: don't use `os`
+# TODO: get rid of all `os.system`, use `subprocess` instead 
 import os
 
 ## ACME EVENT
@@ -68,6 +68,12 @@ class Event:
 
 		return is_valid, orig, etype, beg, end, text
 
+	def stringify(self):
+		"""
+		Convert event to the format understood by Acme
+		"""
+		return f'{self.orig}{self.etype}{self.beg} {self.end}'
+
 ## ACME WINDOW
 ## -----------------------------------------------------------------------------
 
@@ -98,9 +104,9 @@ class Window:
 	@name.setter
 	def name(self, name):
 		self._name = name
-		self._send('name', name)
+		self.send_message('name', name)
 
-	def _send(self, *messages):
+	def send_message(self, *messages):
 		"""
 		Affect the window by sending messages to its controller
 		"""
@@ -111,11 +117,17 @@ class Window:
 			stdin=proc1.stdout, stdout=subprocess.PIPE)
 		proc2.communicate()
 
+	def send_event(self, event):
+		"""
+		Send stringified event to window
+		"""
+		os.system(f"echo '{event.stringify()}' | 9p write acme/{self.id}/event")
+
 	def clean(self):
 		"""
 		Mark window as clean
 		"""
-		self._send('clean')
+		self.send_message('clean')
 
 	def append(self, text):
 		"""
@@ -157,8 +169,8 @@ def play():
 			return
 
 		if event.is_middle_click:
-			# TODO: execute default Acme command
-			print(f"Middle click with text: '{event.text}'")
+			# Middle click executes normal Acme commands
+			window.send_event(event)
 			return
 
 		if not event.is_right_click:
