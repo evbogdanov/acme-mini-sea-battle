@@ -374,20 +374,16 @@ class Game:
 		"""
 		Call me when somebody hits someone. The game might be over.
 		"""
-		score_player = 0
-		for square in self.grid_bot.squares.values():
-			if square == Grid.SQUARE_HIT:
-				score_player += 1
+		def all_hit(grid):
+			score = 0
+			for square in grid.squares.values():
+				if square == Grid.SQUARE_HIT:
+					score += 1
+			return score == self.NUMBER_OF_SHIPS
 
-		if score_player == self.NUMBER_OF_SHIPS:
+		if all_hit(self.grid_bot):
 			self.exit('You won!')
-
-		score_bot = 0
-		for square in self.grid_player.squares.values():
-			if square == Grid.SQUARE_HIT:
-				score_bot += 1
-
-		if score_bot == self.NUMBER_OF_SHIPS:
+		elif all_hit(self.grid_player):
 			self.exit('You lost the game!')
 
 	def exit(self, message):
